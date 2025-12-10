@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'graph-rag-bot-backend'
+    static_configs:
+      - targets: ['backend:8000']
+        labels:
+          service: 'graph-rag-bot-backend'
+          environment: 'development'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+  
+  - job_name: 'graph-rag-bot-telegram'
+    static_configs:
+      - targets: ['bot:9091']
+        labels:
+          service: 'graph-rag-bot-telegram'
+          environment: 'development'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+

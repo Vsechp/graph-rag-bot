@@ -63,6 +63,8 @@ services:
       - BACKEND_URL=http://backend:8000
     depends_on:
       - backend
+    ports:
+      - "9091:9091"
     volumes:
       - ./bot:/app/bot
 

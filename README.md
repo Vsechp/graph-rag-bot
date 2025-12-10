@@ -52,10 +52,20 @@ docker-compose ps
 
 Технологии:
 - **Neo4j** - Графовая база данных для хранения знаний
-- **LangChain** - Многоагентная система (координатор, search-агент, tools)
-- **OpenRouter** - LLM сервис для генерации ответов
+- **LangChain** - Многоагентная система (координатор, url-агент, search-агент)
+- **OpenRouter** - LLM сервис для генерации ответов (модель `qwen/qwen3-30b-a3b-thinking-2507`)
 - **FastAPI** - REST API backend
 - **Aiogram** - Telegram бот фреймворк
+
+## Многоагентная система
+
+Проект использует многоагентную архитектуру на LangChain:
+
+1. **Координатор агент** - определяет намерение пользователя (SAVE_URL или SEARCH) через LLM и маршрутизирует запросы к соответствующим агентам
+2. **URL агент** - обрабатывает сохранение веб-страниц (загрузка контента и сохранение в Neo4j)
+3. **Search агент** - отвечает на вопросы через графовую RAG базу данных
+
+Новых агентов можно добавлять через `create_agent_executor()` с нужными tools и промптом, затем добавить маршрутизацию в координатор.
 
 ## API Endpoints
 
@@ -65,6 +75,130 @@ docker-compose ps
 - `POST /query_time` - Поиск с фильтром по времени
 - `POST /clear` - Очистка всей базы данных
 - `GET /health` - Проверка здоровья сервиса
+- `GET /metrics` - Prometheus метрики для мониторинга
+
+
+## Настройка Grafana для просмотра метрик
+
+### 1. Запустить Prometheus и Grafana
+```bash
+docker-compose -f docker-compose.monitoring.yml up -d
+```
+
+### 2. Открыть Grafana
+- Откройте http://localhost:3000
+- **Логин:** `admin`
+- **Пароль:** `admin`
+
+### 3. Добавить Prometheus как источник данных
+1. **Configuration** → **Data Sources** → **Add data source**
+2. Выберите **Prometheus**
+3. **URL:** `http://prometheus:9090`
+4. Нажмите **Save & Test**
+
+### 4. Импортировать готовый дашборд
+1. Нажмите **+** (в левом меню) → **Import**
+2. Нажмите **Upload JSON file**
+3. Выберите файл `grafana-dashboard.json` из корня проекта
+4. Выберите **Prometheus** как источник данных
+5. Нажмите **Import**
+
+Готово! Дашборд с метриками загружен.
+
+**Что показывает дашборд:**
+- Вызовы агентов и их производительность
+- Вызовы LLM и использование токенов
+- Вызовы инструментов
+- HTTP запросы и время ответа
+- Количество документов и chunks в Neo4j
+- Telegram сообщения
+- Guardrails блокировки
+
+**Примечание:** Некоторые метрики могут быть пустыми, если они еще не использовались (например, метрики Telegram ошибок появятся только при возникновении ошибок).
+
+## Экспорт данных из Grafana
+
+### Экспорт дашборда
+1. Откройте дашборд
+2. Нажмите на иконку **⚙️ Settings** (вверху справа)
+3. Нажмите **JSON Model** - скопируйте JSON
+4. Или нажмите **Share** → **Export** → **Save to file**
+
+### Экспорт данных панели
+1. Откройте панель (нажмите на заголовок панели)
+2. Нажмите **...** (три точки) → **Inspect**
+3. Выберите **Data** - увидите сырые данные
+4. Нажмите **Download CSV** для экспорта
+
+## Просмотр данных в Neo4j
+
+### Через Neo4j Browser (веб-интерфейс)
+1. Откройте http://localhost:7474
+2. **Логин:** `neo4j`
+3. **Пароль:** из `.env` файла (`NEO4J_PASSWORD`)
+4. Выполните Cypher запросы в консоли
+
+### Через командную строку (cypher-shell)
+```bash
+# Подключиться к Neo4j
+docker-compose exec neo4j cypher-shell -u neo4j -p <PASSWORD>
+
+# Или если пароль в .env
+docker-compose exec neo4j cypher-shell -u neo4j -p $(grep NEO4J_PASSWORD .env | cut -d '=' -f2)
+```
+
+### Cypher запросы
+
+**Посмотреть все документы:**
+```cypher
+MATCH (d:Document)
+RETURN d.source, d.type, d.created_at
+ORDER BY d.created_at DESC
+LIMIT 10;
+```
+
+**Посмотреть количество документов и chunks:**
+```cypher
+MATCH (d:Document)
+OPTIONAL MATCH (d)-[:HAS_CHUNK]->(c:Chunk)
+RETURN count(DISTINCT d) AS documents, count(c) AS chunks;
+```
+
+**Посмотреть последний документ и его chunks:**
+```cypher
+MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk)
+WHERE d.created_at = (SELECT max(d2.created_at) FROM Document d2)
+RETURN d.source, d.type, count(c) AS chunk_count, 
+       collect(c.text)[0..3] AS sample_chunks;
+```
+
+**Посмотреть структуру графа (визуализация):**
+```cypher
+MATCH (d:Document)-[r:HAS_CHUNK]->(c:Chunk)
+RETURN d, r, c
+LIMIT 50;
+```
+
+**Поиск по тексту в chunks:**
+```cypher
+MATCH (c:Chunk)
+WHERE c.text CONTAINS 'ваш_поисковый_запрос'
+RETURN c.text, c.chunk_index
+LIMIT 10;
+```
+
+**Статистика по типам документов:**
+```cypher
+MATCH (d:Document)
+RETURN d.type, count(*) AS count
+ORDER BY count DESC;
+```
+
+**Посмотреть все узлы:**
+```cypher
+MATCH (n)
+RETURN labels(n) AS labels, count(*) AS count;
+```
 
 ## Управление Docker сервисами
 

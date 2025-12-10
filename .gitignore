@@ -16,3 +16,31 @@ logs/
 *.pid
 .backend.pid
 .bot.pid
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+*.cover
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Secrets
+secrets/app_secrets.json
+secrets/*.json
+!secrets/README.md
+
+# Terraform
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/environments/*/terraform.tfvars
+terraform/environments/*/secrets.tfvars
+terraform/.terraform/
+terraform/**/.terraform/

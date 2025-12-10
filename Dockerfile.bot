@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir aiogram httpx python-dotenv
+RUN pip install --no-cache-dir aiogram httpx python-dotenv prometheus-client
 
 COPY bot/ ./bot/
 

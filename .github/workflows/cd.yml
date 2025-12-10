@@ -1,0 +1,93 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+
+jobs:
+  deploy-staging:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: http://staging.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.backend
+          push: false
+          tags: graphrag-backend:staging
+          cache-from: type=registry,ref=graphrag-backend:staging
+          cache-to: type=inline
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploy to staging environment"
+          # Здесь будет реальная команда деплоя (например, через docker-compose или kubernetes)
+          # After deployment, can set canary to 0% initially
+          # curl -X POST "${STAGING_URL}/deployment/canary" -H "Content-Type: application/json" -d '{"percentage": 0}'
+        continue-on-error: true
+
+      - name: Health check staging
+        run: |
+          echo "Running health checks on staging"
+          # curl -f "${STAGING_URL}/health" || exit 1
+        continue-on-error: true
+
+  deploy-production:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: http://production.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.backend
+          push: false
+          tags: graphrag-backend:${{ github.ref_name }}
+          cache-from: type=registry,ref=graphrag-backend:latest
+          cache-to: type=inline
+
+      - name: Deploy to production
+        run: |
+          echo "Deploy to production environment (requires manual approval)"
+          # Здесь будет реальная команда деплоя
+          # Recommended: Start with canary 1%
+          # curl -X POST "${PROD_URL}/deployment/canary" -H "Content-Type: application/json" -d '{"percentage": 1}'
+        continue-on-error: true
+
+      - name: Health check production
+        run: |
+          echo "Running health checks on production"
+          # curl -f "${PROD_URL}/health" || exit 1
+        continue-on-error: true
+
+      - name: Start canary deployment (1%)
+        if: success()
+        run: |
+          echo "Starting canary deployment at 1%"
+          # curl -X POST "${PROD_URL}/deployment/canary" -H "Content-Type: application/json" -d '{"percentage": 1}'
+          # Monitor logs/metrics, then gradually increase
+        continue-on-error: true
+

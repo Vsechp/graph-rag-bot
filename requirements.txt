@@ -21,6 +21,7 @@ langchain-core>=0.3.0,<0.4.0
 langchain-text-splitters>=0.3.0,<0.4.0
 langchain-experimental>=0.0.60
 markdownify
+prometheus-client>=0.18.0
 
 
 

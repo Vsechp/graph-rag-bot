@@ -116,6 +116,7 @@ docker-compose -f docker-compose.monitoring.yml up -d
 
 <img width="3388" height="1698" alt="Снимок экрана 2025-12-13 в 21 32 11" src="https://github.com/user-attachments/assets/bcb5c89f-c8a9-40bb-ad87-70cd5d8ede11" />
 Метрики в Graphana
+
 **Примечание:** Некоторые метрики могут быть пустыми, если они еще не использовались (например, метрики Telegram ошибок появятся только при возникновении ошибок).
 
 ## Экспорт данных из Grafana
